@@ -3,18 +3,23 @@
 A point-of-sale and inventory management desktop app for a small furniture
 enterprise. Built with Flutter (Windows) and Supabase (hosted PostgreSQL).
 
-## Features
+## Current status
 
-- Point of sale with variant selection, custom line specifications, price
-  overrides, discounts, and cash/GCash/bank/credit payments
-- Made-to-order lines with deposit, balance, due date, and delivery details
-- Product and variant management (size, color, material, price, stock)
-- Inventory adjustments with a full stock-movement audit trail
-- Customers with store credit (utang), credit limits, and payment recording
-- Sales history with admin void/refund that restores stock and credit
-- Sales reports and charts: totals, top products, categories, payment mix
-- Role-based access: Admin, Cashier, and Inventory Manager
-- On-screen receipts in Philippine pesos
+Phases 0–3 are implemented (bootstrap, auth/shell, products & variants, inventory). Phases 4–9 are planned. `flutter analyze` is clean and 10 tests pass.
+
+### Implemented
+- Supabase bootstrap with `.env` config, schema/migrations, RLS, and atomic RPCs (`create_sale`, `void_sale`, `adjust_stock`, `record_credit_payment`)
+- Email/password auth with profile/role loading (Admin, Cashier, Inventory Manager), inactive-account handling, and a role-based `NavigationRail` shell/dashboard
+- Products & categories: CRUD for categories and products, inline variant management (SKU/label/size/color/material/price/stock, track/active, low-stock override, made-to-order flag), search
+- Inventory: stock-level view with search and low-stock badges, Restock/Deduct adjustments with notes, and a stock-movement audit history
+
+### Planned
+- Customers & store credit (utang) — Phase 4
+- POS cart, custom/made-to-order lines, checkout/receipt (`create_sale`) — Phase 5
+- Sales history & void — Phase 6
+- Reports & analytics — Phase 7
+- Settings & admin team/roles — Phase 8
+- Seed/demo polish, more tests, final verification — Phase 9
 
 ## Tech stack
 
@@ -32,35 +37,59 @@ enterprise. Built with Flutter (Windows) and Supabase (hosted PostgreSQL).
 1. Follow [supabase/README.md](supabase/README.md) to create the project and
    run the migrations.
 2. Copy `.env.example` to `.env` and add your Supabase URL and anon key.
-3. Run:
+3. Create your first user in **Supabase → Authentication → Users**, then
+   promote it to admin (the signup trigger defaults new profiles to `cashier`):
+   ```sql
+   update public.profiles
+   set role = 'admin', full_name = 'Store Admin', is_active = true
+   where id = (select id from auth.users where email = 'you@example.com');
+   ```
+4. Run:
 
 ```powershell
 flutter pub get
 flutter run -d windows
 ```
 
+Sign in with that admin account to access the role-based shell (Products/Inventory are available to Admin and Inventory Manager).
+
 ## Project layout
 
 ```
 lib/
-  core/        config, theme, formatting, shared widgets
-  data/        Supabase client, models, repositories
-  features/    auth, shell, dashboard, pos, products, inventory,
-               customers, sales, reports, users, settings
+  app.dart, main.dart      App bootstrap and provider/auth wiring
+  core/
+    config/                .env access (Supabase URL/anon key)
+    theme/                 Material 3 theme
+    utils/                 Formatting helpers (₱, dates)
+  data/
+    models/                profile, role, category, product/variant,
+                           inventory item, stock movement
+    repositories/          auth, catalog, inventory (Supabase)
+    supabase/              Supabase client
+  features/
+    startup/               Setup/connection screen
+    auth/                  Login, auth gate, session/profile provider
+    shell/                 Role-based NavigationRail and placeholders
+    dashboard/             Role-aware dashboard
+    products/              Category and product/variant management
+    inventory/             Stock levels, adjustments, movement history
 supabase/
-  migrations/  schema, functions/RPCs, RLS, seed data
-  README.md    database setup and role/permission reference
-test/          unit and widget tests
+  migrations/              0001 schema, 0002 functions/RPCs, 0003 RLS, 0004 seed
+  README.md                Database setup and role/permission reference
+test/                      Unit and widget tests
 ```
+
+Scaffolded (upcoming): `features/{pos,customers,sales,reports,users,settings}` and additional `data` models/repositories.
 
 ## Build phases
 
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | Dependencies, schema, RPCs, RLS, app bootstrap | Done |
-| 1 | Models, repositories, auth, role-based shell, theme | Planned |
-| 2 | Categories and product/variant management | Planned |
-| 3 | Inventory adjustments and movement history | Planned |
+| 1 | Auth, profiles/roles, role-based shell, dashboard | Done |
+| 2 | Categories and product/variant management | Done |
+| 3 | Inventory adjustments and movement history | Done |
 | 4 | Customers and store credit | Planned |
 | 5 | POS cart, checkout, receipt, made-to-order | Planned |
 | 6 | Sales history and void | Planned |
@@ -81,3 +110,4 @@ flutter test
 - Only the Supabase anon key ships with the app. The `service_role` key must
   never be added to `.env` or committed.
 - Receipts are displayed on screen only; printing is a future enhancement.
+- No barcode scanning. Role access is enforced by both the UI and Supabase RLS/RPCs.
