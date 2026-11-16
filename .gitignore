@@ -1,3 +1,6 @@
+# Local environment (Supabase URL + anon key)
+.env
+
 # Miscellaneous
 *.class
 *.log
