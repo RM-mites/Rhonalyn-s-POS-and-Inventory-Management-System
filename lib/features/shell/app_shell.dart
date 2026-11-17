@@ -3,10 +3,15 @@ import 'package:provider/provider.dart';
 
 import '../../data/models/user_role.dart';
 import '../auth/providers/auth_provider.dart';
+import '../customers/screens/customers_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../inventory/screens/inventory_screen.dart';
+import '../pos/screens/pos_screen.dart';
 import '../products/screens/products_screen.dart';
-import 'placeholder_screen.dart';
+import '../reports/screens/reports_screen.dart';
+import '../sales/screens/sales_screen.dart';
+import '../settings/screens/settings_screen.dart';
+import '../team/screens/team_screen.dart';
 
 class _NavItem {
   const _NavItem({
@@ -61,11 +66,7 @@ class _AppShellState extends State<AppShell> {
           label: 'POS',
           icon: Icons.point_of_sale_outlined,
           selectedIcon: Icons.point_of_sale,
-          builder: () => const PlaceholderScreen(
-            title: 'Point of Sale',
-            subtitle:
-                'Checkout, cart, custom furniture specs, and on-screen receipts arrive in Phase 5.',
-          ),
+          builder: () => const PosScreen(),
         ),
       );
       items.add(
@@ -73,11 +74,7 @@ class _AppShellState extends State<AppShell> {
           label: 'Sales',
           icon: Icons.receipt_long_outlined,
           selectedIcon: Icons.receipt_long,
-          builder: () => const PlaceholderScreen(
-            title: 'Sales History',
-            subtitle:
-                'View past sales, details, and void transactions in Phase 6.',
-          ),
+          builder: () => const SalesScreen(),
         ),
       );
       items.add(
@@ -85,11 +82,7 @@ class _AppShellState extends State<AppShell> {
           label: 'Customers',
           icon: Icons.people_outline,
           selectedIcon: Icons.people,
-          builder: () => const PlaceholderScreen(
-            title: 'Customers & Credit',
-            subtitle:
-                'Customer records and store credit (utang) arrive in Phase 4.',
-          ),
+          builder: () => const CustomersScreen(),
         ),
       );
     }
@@ -119,10 +112,7 @@ class _AppShellState extends State<AppShell> {
           label: 'Reports',
           icon: Icons.bar_chart_outlined,
           selectedIcon: Icons.bar_chart,
-          builder: () => const PlaceholderScreen(
-            title: 'Reports & Analytics',
-            subtitle: 'Sales and inventory insights arrive in Phase 7.',
-          ),
+          builder: () => const ReportsScreen(),
         ),
       );
       items.add(
@@ -130,10 +120,7 @@ class _AppShellState extends State<AppShell> {
           label: 'Team',
           icon: Icons.admin_panel_settings_outlined,
           selectedIcon: Icons.admin_panel_settings,
-          builder: () => const PlaceholderScreen(
-            title: 'Team & Roles',
-            subtitle: 'Manage staff accounts and roles in Phase 8.',
-          ),
+          builder: () => const TeamScreen(),
         ),
       );
       items.add(
@@ -141,10 +128,7 @@ class _AppShellState extends State<AppShell> {
           label: 'Settings',
           icon: Icons.settings_outlined,
           selectedIcon: Icons.settings,
-          builder: () => const PlaceholderScreen(
-            title: 'Store Settings',
-            subtitle: 'Store details and defaults arrive in Phase 8.',
-          ),
+          builder: () => const SettingsScreen(),
         ),
       );
     }

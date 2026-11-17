@@ -6,6 +6,7 @@ import '../../../core/utils/formatters.dart';
 import '../../../data/models/category.dart';
 import '../../../data/models/product.dart';
 import '../../../data/models/product_variant.dart';
+import '../../settings/providers/settings_provider.dart';
 import '../providers/catalog_provider.dart';
 
 class ProductsScreen extends StatefulWidget {
@@ -24,7 +25,9 @@ class _ProductsScreenState extends State<ProductsScreen>
     super.initState();
     _tabs = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<CatalogProvider>().loadAll();
+      if (!mounted) return;
+      context.read<CatalogProvider>().loadAll();
+      context.read<SettingsProvider>().load(silent: true);
     });
   }
 
@@ -482,8 +485,14 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
     _desc = TextEditingController(text: p?.description ?? '');
     _basePrice = TextEditingController(
         text: p != null ? p.basePrice.toStringAsFixed(2) : '');
-    _lowStock =
-        TextEditingController(text: (p?.lowStockThreshold ?? 5).toString());
+    final defaultThreshold = context
+            .read<SettingsProvider>()
+            .settings
+            ?.defaultLowStockThreshold ??
+        5;
+    _lowStock = TextEditingController(
+      text: (p?.lowStockThreshold ?? defaultThreshold).toString(),
+    );
     _categoryId = p?.categoryId;
     _madeToOrder = p?.isMadeToOrder ?? false;
     _active = p?.isActive ?? true;

@@ -6,12 +6,16 @@ class Profile {
     required this.fullName,
     required this.role,
     required this.isActive,
+    this.createdAt,
+    this.updatedAt,
   });
 
   final String id;
   final String? fullName;
   final UserRole role;
   final bool isActive;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   String get displayName {
     final name = fullName?.trim();
@@ -29,6 +33,13 @@ class Profile {
       fullName: map['full_name'] as String?,
       role: role,
       isActive: map['is_active'] as bool? ?? true,
+      createdAt: _date(map['created_at']),
+      updatedAt: _date(map['updated_at']),
     );
+  }
+
+  static DateTime? _date(dynamic raw) {
+    if (raw == null) return null;
+    return DateTime.tryParse(raw.toString())?.toLocal();
   }
 }

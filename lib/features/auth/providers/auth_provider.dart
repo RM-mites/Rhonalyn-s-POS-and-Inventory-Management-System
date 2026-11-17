@@ -121,6 +121,14 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshProfile() async {
+    try {
+      await _loadProfileForCurrentSession();
+    } catch (e) {
+      _setError(_friendlyMessage(e));
+    }
+  }
+
   Future<void> signOut() async {
     _isWorking = true;
     notifyListeners();

@@ -136,9 +136,8 @@ class StartupScreen extends StatelessWidget {
             const Divider(),
             const SizedBox(height: 20),
             Text(
-              'Phase 0 is complete. The database schema, security rules, and '
-              'app bootstrap are in place. Sign-in and the role-based '
-              'dashboard arrive in Phase 1.',
+              'Setup is complete. Sign in with your admin account to open the '
+              'role-based dashboard, POS, inventory, and reports.',
               style: theme.textTheme.bodyMedium,
             ),
           ],
