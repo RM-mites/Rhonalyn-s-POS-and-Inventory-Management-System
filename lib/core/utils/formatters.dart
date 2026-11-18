@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:intl/intl.dart';
 
 final NumberFormat _peso = NumberFormat.currency(
@@ -36,4 +38,19 @@ double? tryParseAmount(String? raw) {
 String? nullIfBlank(String? value) {
   final trimmed = value?.trim();
   return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+}
+
+final Random _codeRandom = Random.secure();
+
+/// Generates an internal, human-readable code that satisfies the unique
+/// `sku` columns without exposing SKU terminology in the interface.
+String generateItemCode(String prefix) {
+  final stamp =
+      DateTime.now().microsecondsSinceEpoch.toRadixString(36).toUpperCase();
+  final suffix = _codeRandom
+      .nextInt(1 << 20)
+      .toRadixString(36)
+      .toUpperCase()
+      .padLeft(4, '0');
+  return '$prefix-$stamp-$suffix';
 }

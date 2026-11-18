@@ -120,7 +120,7 @@ class CatalogProvider extends ChangeNotifier {
   String _friendly(Object e) {
     final msg = e.toString();
     if (msg.contains('duplicate key') || msg.contains('unique constraint')) {
-      return 'A record with the same SKU or name already exists.';
+      return 'A record with the same name already exists.';
     }
     if (msg.contains('violates foreign key') || msg.contains('23503')) {
       return 'Cannot delete: this record is still in use.';

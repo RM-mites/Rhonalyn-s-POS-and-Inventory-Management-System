@@ -104,7 +104,6 @@ class _ProductsTabState extends State<_ProductsTab> {
       if (_query.isEmpty) return true;
       final q = _query.toLowerCase();
       return p.name.toLowerCase().contains(q) ||
-          p.sku.toLowerCase().contains(q) ||
           (p.category?.name.toLowerCase().contains(q) ?? false);
     }).toList();
 
@@ -117,7 +116,7 @@ class _ProductsTabState extends State<_ProductsTab> {
               Expanded(
                 child: TextField(
                   decoration: const InputDecoration(
-                    hintText: 'Search by name, SKU, or category',
+                    hintText: 'Search by name or category',
                     prefixIcon: Icon(Icons.search),
                   ),
                   onChanged: (v) => setState(() => _query = v.trim()),
@@ -170,12 +169,14 @@ class _ProductTile extends StatelessWidget {
                 : theme.colorScheme.onSurfaceVariant,
           ),
         ),
-        title: Text(product.name,
+        title: Text(product.name, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
-          '$catName • ${product.sku} • ${formatPeso(product.basePrice)}'
+          '$catName • ${formatPeso(product.basePrice)}'
           '${product.isMadeToOrder ? ' • Made to order' : ' • Stock: ${product.totalStock}'}'
           '${product.isActive ? '' : ' • Inactive'}',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
         ),
         trailing: Wrap(
           spacing: 4,
@@ -210,18 +211,26 @@ class _ProductTile extends StatelessWidget {
                     ListTile(
                       dense: true,
                       contentPadding: EdgeInsets.zero,
-                      title: Text('${v.label} (${v.sku})'),
+                      title: Text(v.label, maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
                       subtitle: Text(
                         [
                           if (v.size != null) 'Size: ${v.size}',
                           if (v.color != null) 'Color: ${v.color}',
                           if (v.material != null) 'Material: ${v.material}',
                         ].join(' • ').ifEmpty('No attributes'),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: Text(
-                        '${formatPeso(v.price)}\n${v.trackStock ? 'Stock: ${v.stockQty}' : 'Untracked'}',
-                        textAlign: TextAlign.right,
-                        style: theme.textTheme.bodySmall,
+                      trailing: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 120),
+                        child: Text(
+                          '${formatPeso(v.price)}\n${v.trackStock ? 'Stock: ${v.stockQty}' : 'Untracked'}',
+                          textAlign: TextAlign.right,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall,
+                        ),
                       ),
                     ),
                 ],
@@ -272,10 +281,12 @@ class _CategoriesTab extends StatelessWidget {
                       elevation: 0,
                       child: ListTile(
                         leading: const Icon(Icons.category_outlined),
-                        title: Text(c.name),
+                        title: Text(c.name, maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
                         subtitle: c.description == null || c.description!.isEmpty
                             ? null
-                            : Text(c.description!),
+                            : Text(c.description!, maxLines: 2,
+                                overflow: TextOverflow.ellipsis),
                         trailing: Wrap(
                           spacing: 4,
                           children: [
@@ -335,7 +346,7 @@ Future<void> _openCategoryForm(BuildContext context,
       content: Form(
         key: formKey,
         child: SizedBox(
-          width: 420,
+          width: _dialogWidth(ctx, 420),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -465,7 +476,7 @@ class _ProductFormDialog extends StatefulWidget {
 class _ProductFormDialogState extends State<_ProductFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
-  late final TextEditingController _sku;
+  late String _existingSku;
   late final TextEditingController _desc;
   late final TextEditingController _basePrice;
   late final TextEditingController _lowStock;
@@ -481,7 +492,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
     super.initState();
     final p = widget.existing;
     _name = TextEditingController(text: p?.name ?? '');
-    _sku = TextEditingController(text: p?.sku ?? '');
+    _existingSku = p?.sku ?? '';
     _desc = TextEditingController(text: p?.description ?? '');
     _basePrice = TextEditingController(
         text: p != null ? p.basePrice.toStringAsFixed(2) : '');
@@ -502,7 +513,6 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
   @override
   void dispose() {
     _name.dispose();
-    _sku.dispose();
     _desc.dispose();
     _basePrice.dispose();
     _lowStock.dispose();
@@ -513,9 +523,9 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
     if (!_formKey.currentState!.validate()) return;
     for (var i = 0; i < _variants.length; i++) {
       final v = _variants[i];
-      if (v.sku.trim().isEmpty || v.label.trim().isEmpty) {
+      if (v.label.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Variant ${i + 1}: SKU and label are required.')));
+            content: Text('Variant ${i + 1}: label is required.')));
         return;
       }
       if (v.price < 0 || v.stockQty < 0) {
@@ -528,7 +538,9 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
     final err = await context.read<CatalogProvider>().saveProduct(
           id: widget.existing?.id,
           name: _name.text,
-          sku: _sku.text,
+          sku: _existingSku.trim().isEmpty
+              ? generateItemCode('P')
+              : _existingSku.trim(),
           categoryId: _categoryId,
           description: _desc.text,
           basePrice: double.tryParse(_basePrice.text.trim()) ?? 0,
@@ -565,7 +577,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
     return AlertDialog(
       title: Text(widget.existing == null ? 'Add product' : 'Edit product'),
       content: SizedBox(
-        width: 720,
+        width: _dialogWidth(context, 720),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
@@ -573,75 +585,68 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        controller: _name,
-                        decoration: const InputDecoration(labelText: 'Product name'),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Required'
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _sku,
-                        decoration: const InputDecoration(labelText: 'Base SKU'),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Required'
-                            : null,
-                      ),
-                    ),
-                  ],
+                TextFormField(
+                  controller: _name,
+                  decoration: const InputDecoration(labelText: 'Product name'),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Required'
+                      : null,
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String?>(
-                        initialValue: _categoryId,
-                        decoration: const InputDecoration(labelText: 'Category'),
-                        items: [
-                          const DropdownMenuItem<String?>(
-                              value: null, child: Text('Uncategorized')),
-                          for (final c in categories)
-                            DropdownMenuItem(value: c.id, child: Text(c.name)),
-                        ],
-                        onChanged: (v) => setState(() => _categoryId = v),
+                LayoutBuilder(
+                  builder: (context, constraints) => Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      SizedBox(
+                        width: _fieldWidth(constraints.maxWidth, 3),
+                        child: DropdownButtonFormField<String?>(
+                          initialValue: _categoryId,
+                          decoration: const InputDecoration(labelText: 'Category'),
+                          isExpanded: true,
+                          items: [
+                            const DropdownMenuItem<String?>(
+                                value: null, child: Text('Uncategorized')),
+                            for (final c in categories)
+                              DropdownMenuItem(
+                                value: c.id,
+                                child: Text(c.name, maxLines: 1,
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                          ],
+                          onChanged: (v) => setState(() => _categoryId = v),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _basePrice,
-                        decoration:
-                            const InputDecoration(labelText: 'Base price (₱)'),
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
-                        ],
-                        validator: (v) => (double.tryParse(v?.trim() ?? '') == null)
-                            ? 'Invalid'
-                            : null,
+                      SizedBox(
+                        width: _fieldWidth(constraints.maxWidth, 3),
+                        child: TextFormField(
+                          controller: _basePrice,
+                          decoration:
+                              const InputDecoration(labelText: 'Base price (₱)'),
+                          keyboardType:
+                              const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                          ],
+                          validator: (v) => (double.tryParse(v?.trim() ?? '') == null)
+                              ? 'Invalid'
+                              : null,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _lowStock,
-                        decoration: const InputDecoration(
-                            labelText: 'Low-stock threshold'),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly
-                        ],
+                      SizedBox(
+                        width: _fieldWidth(constraints.maxWidth, 3),
+                        child: TextFormField(
+                          controller: _lowStock,
+                          decoration: const InputDecoration(
+                              labelText: 'Low-stock threshold'),
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
@@ -699,7 +704,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
                     child: Text(
-                        'Add at least one variant (size/color/material/SKU/price/stock).'),
+                        'Add at least one variant (size/color/material/price/stock).'),
                   )
                 else
                   ..._variants.asMap().entries.map((e) {
@@ -713,11 +718,14 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
                           .withValues(alpha: 0.3),
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
-                        title: Text('${v.label} (${v.sku})'),
+                        title: Text(v.label, maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
                         subtitle: Text(
                           '${formatPeso(v.price)} • '
                           '${v.trackStock ? 'Stock: ${v.stockQty}' : 'Untracked'}'
                           '${v.isActive ? '' : ' • Inactive'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         trailing: Wrap(
                           spacing: 4,
@@ -765,7 +773,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
 
 Future<bool?> _editVariantDraft(BuildContext context, VariantDraft draft,
     {required bool isNew}) {
-  final sku = TextEditingController(text: draft.sku);
+  final existingSku = draft.sku;
   final label = TextEditingController(text: draft.label);
   final size = TextEditingController(text: draft.size ?? '');
   final color = TextEditingController(text: draft.color ?? '');
@@ -786,50 +794,43 @@ Future<bool?> _editVariantDraft(BuildContext context, VariantDraft draft,
         content: Form(
           key: formKey,
           child: SizedBox(
-            width: 520,
+            width: _dialogWidth(ctx, 520),
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: label,
-                        decoration:
-                            const InputDecoration(labelText: 'Label (e.g. Walnut / Large)'),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: sku,
-                        decoration:
-                            const InputDecoration(labelText: 'Variant SKU'),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
-                      ),
-                    ),
-                  ]),
+                  TextFormField(
+                    controller: label,
+                    decoration:
+                        const InputDecoration(labelText: 'Label (e.g. Walnut / Large)'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
                   const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: size,
-                        decoration:
-                            const InputDecoration(labelText: 'Size (optional)'),
-                      ),
+                  LayoutBuilder(
+                    builder: (context, constraints) => Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        SizedBox(
+                          width: _fieldWidth(constraints.maxWidth, 2),
+                          child: TextFormField(
+                            controller: size,
+                            decoration:
+                                const InputDecoration(labelText: 'Size (optional)'),
+                          ),
+                        ),
+                        SizedBox(
+                          width: _fieldWidth(constraints.maxWidth, 2),
+                          child: TextFormField(
+                            controller: color,
+                            decoration:
+                                const InputDecoration(labelText: 'Color (optional)'),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: color,
-                        decoration:
-                            const InputDecoration(labelText: 'Color (optional)'),
-                      ),
-                    ),
-                  ]),
+                  ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: material,
@@ -837,55 +838,67 @@ Future<bool?> _editVariantDraft(BuildContext context, VariantDraft draft,
                         const InputDecoration(labelText: 'Material (optional)'),
                   ),
                   const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: price,
-                        decoration:
-                            const InputDecoration(labelText: 'Price (₱)'),
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
-                        ],
-                      ),
+                  LayoutBuilder(
+                    builder: (context, constraints) => Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: [
+                        SizedBox(
+                          width: _fieldWidth(constraints.maxWidth, 3),
+                          child: TextFormField(
+                            controller: price,
+                            decoration:
+                                const InputDecoration(labelText: 'Price (₱)'),
+                            keyboardType:
+                                const TextInputType.numberWithOptions(decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))
+                            ],
+                          ),
+                        ),
+                        SizedBox(
+                          width: _fieldWidth(constraints.maxWidth, 3),
+                          child: TextFormField(
+                            controller: stock,
+                            decoration:
+                                const InputDecoration(labelText: 'Stock qty'),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly
+                            ],
+                          ),
+                        ),
+                        SizedBox(
+                          width: _fieldWidth(constraints.maxWidth, 3),
+                          child: TextFormField(
+                            controller: threshold,
+                            decoration: const InputDecoration(
+                                labelText: 'Low-stock override'),
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: stock,
-                        decoration:
-                            const InputDecoration(labelText: 'Stock qty'),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: threshold,
-                        decoration: const InputDecoration(
-                            labelText: 'Low-stock override'),
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly
-                        ],
-                      ),
-                    ),
-                  ]),
+                  ),
                   const SizedBox(height: 8),
-                  Row(children: [
-                    Switch(
-                        value: trackStock,
-                        onChanged: (v) => setD(() => trackStock = v)),
-                    const Text('Track stock'),
-                    const SizedBox(width: 16),
-                    Switch(
-                        value: active, onChanged: (v) => setD(() => active = v)),
-                    const Text('Active'),
-                  ]),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Switch(
+                          value: trackStock,
+                          onChanged: (v) => setD(() => trackStock = v)),
+                      const Text('Track stock'),
+                      const SizedBox(width: 8),
+                      Switch(
+                          value: active, onChanged: (v) => setD(() => active = v)),
+                      const Text('Active'),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -898,7 +911,9 @@ Future<bool?> _editVariantDraft(BuildContext context, VariantDraft draft,
           FilledButton(
             onPressed: () {
               if (!formKey.currentState!.validate()) return;
-              draft.sku = sku.text.trim();
+              draft.sku = existingSku.trim().isEmpty
+                  ? generateItemCode('V')
+                  : existingSku.trim();
               draft.label = label.text.trim();
               draft.size = size.text.trim().isEmpty ? null : size.text.trim();
               draft.color = color.text.trim().isEmpty ? null : color.text.trim();
@@ -919,4 +934,15 @@ Future<bool?> _editVariantDraft(BuildContext context, VariantDraft draft,
       ),
     ),
   );
+}
+
+double _dialogWidth(BuildContext context, double max) {
+  final available = MediaQuery.sizeOf(context).width - 32;
+  if (available < 280) return 280;
+  return available > max ? max : available;
+}
+
+double _fieldWidth(double maxWidth, int count) {
+  if (maxWidth < 480) return maxWidth;
+  return (maxWidth - 12 * (count - 1)) / count;
 }

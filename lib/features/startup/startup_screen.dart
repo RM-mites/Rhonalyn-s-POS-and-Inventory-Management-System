@@ -137,7 +137,7 @@ class StartupScreen extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               'Setup is complete. Sign in with your admin account to open the '
-              'role-based dashboard, POS, inventory, and reports.',
+              'role-based dashboard, sales, inventory, and reports.',
               style: theme.textTheme.bodyMedium,
             ),
           ],
@@ -182,14 +182,14 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "Rhonalyn's POS & Inventory",
+                "Rhonalyn's Sales & Inventory",
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Point of sale and stock management for a furniture business',
+                'Sales and stock management for a furniture business',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

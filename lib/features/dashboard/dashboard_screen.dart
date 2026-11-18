@@ -82,7 +82,7 @@ class DashboardScreen extends StatelessWidget {
     switch (role) {
       case UserRole.admin:
         return const [
-          _DashTile(Icons.point_of_sale, 'Point of Sale',
+          _DashTile(Icons.point_of_sale, 'Sales',
               'Process furniture sales and custom orders.'),
           _DashTile(Icons.inventory_2_outlined, 'Inventory',
               'Track stock levels and adjustments.'),
@@ -93,7 +93,7 @@ class DashboardScreen extends StatelessWidget {
         ];
       case UserRole.cashier:
         return const [
-          _DashTile(Icons.point_of_sale, 'Point of Sale',
+          _DashTile(Icons.point_of_sale, 'Sales',
               'Process sales and issue on-screen receipts.'),
           _DashTile(Icons.receipt_long_outlined, 'Sales History',
               'Review today’s and past transactions.'),

@@ -37,44 +37,71 @@ class _ReportsScreenState extends State<ReportsScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final title = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Reports & Analytics',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  if (data != null)
+                    Text(
+                      '${formatDate(data.from)} – ${formatDate(data.to)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              );
+              final controls = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SegmentedButton<int>(
+                    segments: const [
+                      ButtonSegment(value: 7, label: Text('7 days')),
+                      ButtonSegment(value: 30, label: Text('30 days')),
+                      ButtonSegment(value: 90, label: Text('90 days')),
+                    ],
+                    selected: {provider.rangeDays},
+                    onSelectionChanged: (selection) =>
+                        context.read<ReportsProvider>().setRange(selection.first),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    icon: const Icon(Icons.refresh),
+                    onPressed: () => provider.load(),
+                  ),
+                ],
+              );
+              if (constraints.maxWidth < 720) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Reports & Analytics',
-                      style: theme.textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                    title,
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: controls,
                     ),
-                    if (data != null)
-                      Text(
-                        '${formatDate(data.from)} – ${formatDate(data.to)}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
                   ],
-                ),
-              ),
-              SegmentedButton<int>(
-                segments: const [
-                  ButtonSegment(value: 7, label: Text('7 days')),
-                  ButtonSegment(value: 30, label: Text('30 days')),
-                  ButtonSegment(value: 90, label: Text('90 days')),
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 8),
+                  controls,
                 ],
-                selected: {provider.rangeDays},
-                onSelectionChanged: (selection) =>
-                    context.read<ReportsProvider>().setRange(selection.first),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'Refresh',
-                icon: const Icon(Icons.refresh),
-                onPressed: () => provider.load(),
-              ),
-            ],
+              );
+            },
           ),
         ),
         Expanded(
@@ -108,6 +135,9 @@ class _ReportsBody extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth >= 1180;
+            final kpiWidth = constraints.maxWidth < 520
+                ? constraints.maxWidth
+                : 220.0;
             final trend = _TrendCard(data: data);
             final payments = _PaymentCard(data: data);
             return ListView(
@@ -117,42 +147,57 @@ class _ReportsBody extends StatelessWidget {
                   spacing: 12,
                   runSpacing: 12,
                   children: [
-                    _KpiCard(
-                      icon: Icons.payments_outlined,
-                      label: 'Revenue',
-                      value: formatPeso(data.totalRevenue),
-                      subtitle: '${data.totalSales} completed sales',
-                      accent: theme.colorScheme.primary,
+                    SizedBox(
+                      width: kpiWidth,
+                      child: _KpiCard(
+                        icon: Icons.payments_outlined,
+                        label: 'Revenue',
+                        value: formatPeso(data.totalRevenue),
+                        subtitle: '${data.totalSales} completed sales',
+                        accent: theme.colorScheme.primary,
+                      ),
                     ),
-                    _KpiCard(
-                      icon: Icons.receipt_long_outlined,
-                      label: 'Transactions',
-                      value: formatQuantity(data.totalSales),
-                      subtitle: 'In the selected range',
-                      accent: const Color(0xFF5B8DEF),
+                    SizedBox(
+                      width: kpiWidth,
+                      child: _KpiCard(
+                        icon: Icons.receipt_long_outlined,
+                        label: 'Transactions',
+                        value: formatQuantity(data.totalSales),
+                        subtitle: 'In the selected range',
+                        accent: const Color(0xFF5B8DEF),
+                      ),
                     ),
-                    _KpiCard(
-                      icon: Icons.shopping_bag_outlined,
-                      label: 'Items sold',
-                      value: formatQuantity(data.itemsSold),
-                      subtitle: '${data.topProducts.length} product(s) sold',
-                      accent: const Color(0xFF34B27B),
+                    SizedBox(
+                      width: kpiWidth,
+                      child: _KpiCard(
+                        icon: Icons.shopping_bag_outlined,
+                        label: 'Items sold',
+                        value: formatQuantity(data.itemsSold),
+                        subtitle: '${data.topProducts.length} product(s) sold',
+                        accent: const Color(0xFF34B27B),
+                      ),
                     ),
-                    _KpiCard(
-                      icon: Icons.trending_up,
-                      label: 'Average sale',
-                      value: formatPeso(data.averageSale),
-                      subtitle: 'Revenue ÷ transactions',
-                      accent: const Color(0xFF8E6CEF),
+                    SizedBox(
+                      width: kpiWidth,
+                      child: _KpiCard(
+                        icon: Icons.trending_up,
+                        label: 'Average sale',
+                        value: formatPeso(data.averageSale),
+                        subtitle: 'Revenue ÷ transactions',
+                        accent: const Color(0xFF8E6CEF),
+                      ),
                     ),
-                    _KpiCard(
-                      icon: Icons.warning_amber_rounded,
-                      label: 'Low stock',
-                      value: formatQuantity(data.lowStock.length),
-                      subtitle: 'Variants at or below threshold',
-                      accent: data.lowStock.isEmpty
-                          ? const Color(0xFF34B27B)
-                          : theme.colorScheme.error,
+                    SizedBox(
+                      width: kpiWidth,
+                      child: _KpiCard(
+                        icon: Icons.warning_amber_rounded,
+                        label: 'Low stock',
+                        value: formatQuantity(data.lowStock.length),
+                        subtitle: 'Variants at or below threshold',
+                        accent: data.lowStock.isEmpty
+                            ? const Color(0xFF34B27B)
+                            : theme.colorScheme.error,
+                      ),
                     ),
                   ],
                 ),
@@ -220,8 +265,8 @@ class _KpiCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SizedBox(
-      width: 220,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 220),
       child: Card(
         elevation: 0,
         child: Padding(
@@ -250,12 +295,16 @@ class _KpiCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -291,12 +340,16 @@ class _SectionCard extends StatelessWidget {
           children: [
             Text(
               title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.titleMedium
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 2),
             Text(
               subtitle,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
@@ -562,10 +615,15 @@ class _PaymentCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  formatPeso(data.payments[i].total),
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                Flexible(
+                  child: Text(
+                    formatPeso(data.payments[i].total),
+                    textAlign: TextAlign.end,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
             ),
@@ -631,10 +689,15 @@ class _TopProductsCard extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    formatPeso(data.topProducts[i].revenue),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
+                                  Flexible(
+                                    child: Text(
+                                      formatPeso(data.topProducts[i].revenue),
+                                      textAlign: TextAlign.end,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -718,12 +781,19 @@ class _LowStockCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    subtitle: Text('${item.sku} • threshold ${item.threshold}'),
-                    trailing: Text(
-                      '${item.stockQty} left',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.error,
+                    subtitle: Text('Threshold ${item.threshold}',
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    trailing: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 96),
+                      child: Text(
+                        '${item.stockQty} left',
+                        textAlign: TextAlign.end,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.error,
+                        ),
                       ),
                     ),
                   ),

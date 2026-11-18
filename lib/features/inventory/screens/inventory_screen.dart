@@ -119,8 +119,7 @@ class _StockTabState extends State<_StockTab> {
       if (_query.isEmpty) return true;
       final q = _query.toLowerCase();
       return i.productName.toLowerCase().contains(q) ||
-          i.variantLabel.toLowerCase().contains(q) ||
-          i.variantSku.toLowerCase().contains(q);
+          i.variantLabel.toLowerCase().contains(q);
     }).toList();
 
     return Column(
@@ -132,7 +131,7 @@ class _StockTabState extends State<_StockTab> {
               Expanded(
                 child: TextField(
                   decoration: const InputDecoration(
-                    hintText: 'Search product, variant, or SKU',
+                    hintText: 'Search product or variant',
                     prefixIcon: Icon(Icons.search),
                   ),
                   onChanged: (v) => setState(() => _query = v.trim()),
@@ -187,7 +186,6 @@ class _InventoryTile extends StatelessWidget {
         title: Text('${item.productName} — ${item.variantLabel}',
             style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(
-          '${item.variantSku} • '
           '${item.trackStock ? 'Threshold: ${item.threshold}' : 'Stock not tracked'}'
           '${item.isActive ? '' : ' • Inactive'}',
         ),
@@ -297,7 +295,6 @@ class _MovementTile extends StatelessWidget {
         : (movement.variantLabel ?? movement.variantId);
     final subtitleParts = <String>[
       _typeLabel(movement.movementType),
-      if (movement.variantSku != null) movement.variantSku!,
       if (movement.notes != null && movement.notes!.isNotEmpty) movement.notes!,
       formatDateTime(movement.createdAt),
     ];
@@ -389,7 +386,7 @@ Future<void> _openAdjustDialog(BuildContext context, InventoryItem item) async {
                   style: Theme.of(ctx).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 4),
-                Text('Current stock: ${item.stockQty}  •  SKU: ${item.variantSku}'),
+                Text('Current stock: ${item.stockQty}'),
                 const SizedBox(height: 16),
                 SegmentedButton<String>(
                   segments: const [

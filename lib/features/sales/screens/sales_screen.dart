@@ -51,13 +51,26 @@ class _SalesScreenState extends State<SalesScreen> {
           ]),
         ),
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Row(children: [
-              Expanded(flex: 5, child: _buildList(context, provider, sales)),
-              const SizedBox(width: 16),
-              Expanded(flex: 6, child: _DetailPane()),
-            ]),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final list = _buildList(context, provider, sales);
+              if (constraints.maxWidth >= 900) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Row(children: [
+                    Expanded(flex: 5, child: list),
+                    const SizedBox(width: 16),
+                    Expanded(flex: 6, child: _DetailPane()),
+                  ]),
+                );
+              }
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: provider.selectedId == null
+                    ? list
+                    : _DetailPane(onBack: provider.clearSelection),
+              );
+            },
           ),
         ),
       ],
@@ -75,31 +88,46 @@ class _SalesScreenState extends State<SalesScreen> {
         onChanged: (v) => setState(() => _query = v.trim()),
       ),
       const SizedBox(height: 8),
-      Row(children: [
-        Expanded(child: DropdownButtonFormField<String>(
-          initialValue: _status,
-          decoration: const InputDecoration(labelText: 'Status', isDense: true),
-          items: const [
-            DropdownMenuItem(value: 'all', child: Text('All statuses')),
-            DropdownMenuItem(value: 'completed', child: Text('Completed')),
-            DropdownMenuItem(value: 'voided', child: Text('Voided')),
-          ],
-          onChanged: (v) => setState(() => _status = v ?? 'all'),
-        )),
-        const SizedBox(width: 8),
-        Expanded(child: DropdownButtonFormField<String>(
-          initialValue: _method,
-          decoration: const InputDecoration(labelText: 'Payment', isDense: true),
-          items: const [
-            DropdownMenuItem(value: 'all', child: Text('All methods')),
-            DropdownMenuItem(value: 'cash', child: Text('Cash')),
-            DropdownMenuItem(value: 'gcash', child: Text('GCash')),
-            DropdownMenuItem(value: 'bank_transfer', child: Text('Bank transfer')),
-            DropdownMenuItem(value: 'credit', child: Text('Store credit')),
-          ],
-          onChanged: (v) => setState(() => _method = v ?? 'all'),
-        )),
-      ]),
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final status = DropdownButtonFormField<String>(
+            initialValue: _status,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Status', isDense: true),
+            items: const [
+              DropdownMenuItem(value: 'all', child: Text('All statuses')),
+              DropdownMenuItem(value: 'completed', child: Text('Completed')),
+              DropdownMenuItem(value: 'voided', child: Text('Voided')),
+            ],
+            onChanged: (v) => setState(() => _status = v ?? 'all'),
+          );
+          final method = DropdownButtonFormField<String>(
+            initialValue: _method,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Payment', isDense: true),
+            items: const [
+              DropdownMenuItem(value: 'all', child: Text('All methods')),
+              DropdownMenuItem(value: 'cash', child: Text('Cash')),
+              DropdownMenuItem(value: 'gcash', child: Text('GCash')),
+              DropdownMenuItem(value: 'bank_transfer', child: Text('Bank transfer')),
+              DropdownMenuItem(value: 'credit', child: Text('Store credit')),
+            ],
+            onChanged: (v) => setState(() => _method = v ?? 'all'),
+          );
+          if (constraints.maxWidth < 480) {
+            return Column(children: [
+              status,
+              const SizedBox(height: 8),
+              method,
+            ]);
+          }
+          return Row(children: [
+            Expanded(child: status),
+            const SizedBox(width: 8),
+            Expanded(child: method),
+          ]);
+        },
+      ),
       const SizedBox(height: 8),
       Expanded(
         child: sales.isEmpty
@@ -143,8 +171,10 @@ class _SaleTile extends StatelessWidget {
           Expanded(child: Text(sale.receiptNo, style: const TextStyle(fontWeight: FontWeight.w600))),
           if (voided) _StatusChip(label: 'VOIDED', color: theme.colorScheme.error),
         ]),
-        subtitle: Text(subtitleParts.join(' • ')),
+        subtitle: Text(subtitleParts.join(' • '),
+            maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: Text(formatPeso(sale.total),
+            maxLines: 1, overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w700,
               decoration: voided ? TextDecoration.lineThrough : null,
@@ -167,6 +197,9 @@ class _StatusChip extends StatelessWidget {
 }
 
 class _DetailPane extends StatelessWidget {
+  const _DetailPane({this.onBack});
+  final VoidCallback? onBack;
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<SalesProvider>();
@@ -189,9 +222,20 @@ class _DetailPane extends StatelessWidget {
 
     return Card(elevation: 0, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(padding: const EdgeInsets.fromLTRB(20, 16, 12, 8), child: Row(children: [
+        if (onBack != null)
+          IconButton(
+            tooltip: 'Back to sales',
+            icon: const Icon(Icons.arrow_back),
+            onPressed: onBack,
+            visualDensity: VisualDensity.compact,
+          ),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Text(sale.receiptNo, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            Flexible(
+              child: Text(sale.receiptNo, maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            ),
             const SizedBox(width: 8),
             if (sale.isVoided) _StatusChip(label: 'VOIDED', color: theme.colorScheme.error)
             else _StatusChip(label: 'COMPLETED', color: Colors.green.shade700),
@@ -200,6 +244,7 @@ class _DetailPane extends StatelessWidget {
           Text([if (sale.createdAt != null) formatDateTime(sale.createdAt!),
                 'Cashier: ${sale.cashierName ?? '—'}',
                 'Customer: ${sale.customerName ?? 'Walk-in'}'].join(' • '),
+              maxLines: 2, overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         ])),
         if (isAdmin && !sale.isVoided)
@@ -250,7 +295,12 @@ class _DetailPane extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 2),
     child: Row(children: [
       Expanded(child: Text(label, style: TextStyle(fontWeight: bold ? FontWeight.w700 : null))),
-      Text(value, style: TextStyle(fontWeight: bold ? FontWeight.w700 : null)),
+      const SizedBox(width: 8),
+      Flexible(
+        child: Text(value, textAlign: TextAlign.right, maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontWeight: bold ? FontWeight.w700 : null)),
+      ),
     ]),
   );
 }
@@ -279,7 +329,12 @@ class _LineTile extends StatelessWidget {
             Text(_specs(item.customSpecs!), style: theme.textTheme.bodySmall),
         ])),
         const SizedBox(width: 12),
-        Text(formatPeso(item.lineTotal), style: const TextStyle(fontWeight: FontWeight.w600)),
+        Flexible(
+          child: Text(formatPeso(item.lineTotal),
+              textAlign: TextAlign.right, maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+        ),
       ]),
     );
   }
@@ -339,7 +394,7 @@ Future<void> _confirmVoid(BuildContext context, SaleRecord sale) async {
   bool saving = false;
   final ok = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setD) => AlertDialog(
     title: const Text('Void sale'),
-    content: SizedBox(width: 420, child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+    content: SizedBox(width: _dialogWidth(ctx, 420), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('Void ${sale.receiptNo}? This will restore tracked stock and reverse store credit (if charged). This cannot be undone.'),
       const SizedBox(height: 12),
       TextField(controller: reason, decoration: const InputDecoration(labelText: 'Reason (optional)'), maxLines: 2),
@@ -364,4 +419,10 @@ Future<void> _confirmVoid(BuildContext context, SaleRecord sale) async {
 
 String _paymentLabel(String m) {
   switch (m) { case 'gcash': return 'GCash'; case 'bank_transfer': return 'Bank transfer'; case 'credit': return 'Store credit'; default: return 'Cash'; }
+}
+
+double _dialogWidth(BuildContext context, double max) {
+  final available = MediaQuery.sizeOf(context).width - 32;
+  if (available < 280) return 280;
+  return available > max ? max : available;
 }

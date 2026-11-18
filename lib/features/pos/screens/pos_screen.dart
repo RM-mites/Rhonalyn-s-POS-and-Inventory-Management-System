@@ -46,10 +46,7 @@ class _PosScreenState extends State<PosScreen> {
       if (_query.isEmpty) return true;
       final q = _query.toLowerCase();
       return p.name.toLowerCase().contains(q) ||
-          p.sku.toLowerCase().contains(q) ||
-          p.variants.any((v) =>
-              v.label.toLowerCase().contains(q) ||
-              v.sku.toLowerCase().contains(q));
+          p.variants.any((v) => v.label.toLowerCase().contains(q));
     }).toList();
 
     return Column(
@@ -61,7 +58,7 @@ class _PosScreenState extends State<PosScreen> {
             children: [
               Expanded(
                 child: Text(
-                  'Point of Sale',
+                  'Sales',
                   style: theme.textTheme.headlineSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
@@ -78,49 +75,108 @@ class _PosScreenState extends State<PosScreen> {
           ),
         ),
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(flex: 6, child: _buildCatalog(context, catalog, products)),
-                const SizedBox(width: 16),
-                SizedBox(width: 420, child: _CartPanel(cart: cart)),
-              ],
-            ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth >= 1000) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        flex: 6,
+                        child: _buildCatalog(context, catalog, products),
+                      ),
+                      const SizedBox(width: 16),
+                      SizedBox(width: 420, child: _CartPanel(cart: cart)),
+                    ],
+                  ),
+                );
+              }
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildCatalog(context, catalog, products,
+                        fillHeight: false),
+                    const SizedBox(height: 16),
+                    _CartPanel(cart: cart, fillHeight: false),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  Widget _buildCatalog(BuildContext context, CatalogProvider catalog, List<Product> products) {
+  Widget _buildCatalog(
+    BuildContext context,
+    CatalogProvider catalog,
+    List<Product> products, {
+    bool fillHeight = true,
+  }) {
     if (catalog.isLoading && catalog.products.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
     if (catalog.error != null && catalog.products.isEmpty) {
       return _ErrorView(message: catalog.error!, onRetry: catalog.loadAll);
     }
+    final grid = products.isEmpty
+        ? const Padding(
+            padding: EdgeInsets.symmetric(vertical: 32),
+            child: Center(child: Text('No products found.')),
+          )
+        : GridView.builder(
+            shrinkWrap: !fillHeight,
+            physics: fillHeight ? null : const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 240, mainAxisExtent: 170,
+              crossAxisSpacing: 12, mainAxisSpacing: 12,
+            ),
+            itemCount: products.length,
+            itemBuilder: (context, i) => _ProductCard(product: products[i]),
+          );
+    final searchField = TextField(
+      decoration: const InputDecoration(
+        hintText: 'Search products or variants',
+        prefixIcon: Icon(Icons.search),
+      ),
+      onChanged: (v) => setState(() => _query = v.trim()),
+    );
+    final customButton = FilledButton.tonalIcon(
+      onPressed: () => _openCustomItemDialog(context),
+      icon: const Icon(Icons.edit_note),
+      label: const Text('Custom / MTO'),
+    );
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Search products or variants',
-                  prefixIcon: Icon(Icons.search),
-                ),
-                onChanged: (v) => setState(() => _query = v.trim()),
-              ),
-            ),
-            const SizedBox(width: 12),
-            FilledButton.tonalIcon(
-              onPressed: () => _openCustomItemDialog(context),
-              icon: const Icon(Icons.edit_note),
-              label: const Text('Custom / MTO'),
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 520) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  searchField,
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: customButton,
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: searchField),
+                const SizedBox(width: 12),
+                Flexible(child: customButton),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 8),
         SizedBox(
@@ -149,18 +205,7 @@ class _PosScreenState extends State<PosScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Expanded(
-          child: products.isEmpty
-              ? const Center(child: Text('No products found.'))
-              : GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 240, mainAxisExtent: 170,
-                    crossAxisSpacing: 12, mainAxisSpacing: 12,
-                  ),
-                  itemCount: products.length,
-                  itemBuilder: (context, i) => _ProductCard(product: products[i]),
-                ),
-        ),
+        if (fillHeight) Expanded(child: grid) else grid,
       ],
     );
   }
@@ -209,6 +254,7 @@ class _ProductCard extends StatelessWidget {
                   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
               Text('$stockLabel • ${activeVariants.length} variant(s)',
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ],
           ),
@@ -219,12 +265,31 @@ class _ProductCard extends StatelessWidget {
 }
 
 class _CartPanel extends StatelessWidget {
-  const _CartPanel({required this.cart});
+  const _CartPanel({required this.cart, this.fillHeight = true});
   final CartProvider cart;
+  final bool fillHeight;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final items = cart.isEmpty
+        ? const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text(
+                'Tap a product to add it, or create a custom / made-to-order line.',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          )
+        : ListView.separated(
+            shrinkWrap: !fillHeight,
+            physics: fillHeight ? null : const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(12),
+            itemCount: cart.items.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, i) => _CartLine(index: i),
+          );
     return Card(
       elevation: 0,
       child: Column(
@@ -239,18 +304,7 @@ class _CartPanel extends StatelessWidget {
             ]),
           ),
           const Divider(height: 1),
-          Expanded(
-            child: cart.isEmpty
-                ? const Center(child: Padding(padding: EdgeInsets.all(24),
-                    child: Text('Tap a product to add it, or create a custom / made-to-order line.',
-                        textAlign: TextAlign.center)))
-                : ListView.separated(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: cart.items.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
-                    itemBuilder: (context, i) => _CartLine(index: i),
-                  ),
-          ),
+          if (fillHeight) Expanded(child: items) else items,
           const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.all(16),
@@ -282,7 +336,14 @@ class _CartPanel extends StatelessWidget {
 
   Widget _row(String label, String value, ThemeData theme, {bool bold = false}) {
     final style = bold ? theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700) : theme.textTheme.bodyMedium;
-    return Row(children: [Expanded(child: Text(label, style: style)), Text(value, style: style)]);
+    return Row(children: [
+      Expanded(child: Text(label, style: style)),
+      const SizedBox(width: 8),
+      Flexible(
+        child: Text(value, textAlign: TextAlign.right, maxLines: 1,
+            overflow: TextOverflow.ellipsis, style: style),
+      ),
+    ]);
   }
 }
 
@@ -306,12 +367,17 @@ class _CartLine extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(item.description, style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(item.description, maxLines: 2, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
             if (specSummary.isNotEmpty)
-              Text(specSummary, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            if ((item.notes ?? '').isNotEmpty) Text('Note: ${item.notes}', style: theme.textTheme.bodySmall),
+              Text(specSummary, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            if ((item.notes ?? '').isNotEmpty)
+              Text('Note: ${item.notes}', maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall),
             if (item.madeToOrder != null)
               Text('MTO • Deposit ${formatPeso(item.madeToOrder!.depositAmount)} • Balance ${formatPeso(item.madeToOrder!.balanceDue)}',
+                  maxLines: 3, overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary)),
           ])),
           IconButton(tooltip: 'Remove', icon: const Icon(Icons.close, size: 18),
@@ -323,10 +389,16 @@ class _CartLine extends StatelessWidget {
           Text('${item.quantity}', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
           IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => cart.increment(index), visualDensity: VisualDensity.compact),
           const Spacer(),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(formatPeso(item.unitPrice), style: theme.textTheme.bodySmall),
-            Text(formatPeso(item.lineTotal), style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
-          ]),
+          Flexible(child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(formatPeso(item.unitPrice), maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall),
+              Text(formatPeso(item.lineTotal), maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            ],
+          )),
         ]),
       ]),
     );
@@ -393,16 +465,21 @@ Future<void> _pickVariant(BuildContext context, Product product, List<ProductVar
   final chosen = await showDialog<ProductVariant>(
     context: context,
     builder: (ctx) => SimpleDialog(
-      title: Text('Select variant — ${product.name}'),
+      title: Text('Select variant — ${product.name}', maxLines: 2, overflow: TextOverflow.ellipsis),
       children: [for (final v in variants) SimpleDialogOption(
         onPressed: () => Navigator.pop(ctx, v),
         child: Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(v.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text(v.label, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
             Text([if ((v.size ?? '').isNotEmpty) v.size!, if ((v.color ?? '').isNotEmpty) v.color!, if ((v.material ?? '').isNotEmpty) v.material!, v.trackStock ? 'Stock: ${v.stockQty}' : 'Untracked'].join(' • '),
+                maxLines: 2, overflow: TextOverflow.ellipsis,
                 style: Theme.of(ctx).textTheme.bodySmall),
           ])),
-          Text(formatPeso(v.price), style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(width: 8),
+          Flexible(child: Text(formatPeso(v.price), textAlign: TextAlign.right,
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700))),
         ])),
       )],
     ),
@@ -455,7 +532,7 @@ class _CustomItemDialogState extends State<_CustomItemDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Custom / made-to-order item'),
-      content: Form(key: _formKey, child: SizedBox(width: 560, child: SingleChildScrollView(child: Column(
+      content: Form(key: _formKey, child: SizedBox(width: _dialogWidth(context, 560), child: SingleChildScrollView(child: Column(
         mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           TextFormField(controller: _desc, decoration: const InputDecoration(labelText: 'Item description'),
               validator: (v) => (v==null||v.trim().isEmpty)?'Required':null),
@@ -490,7 +567,8 @@ class _CustomItemDialogState extends State<_CustomItemDialog> {
           TextField(controller: _notes, decoration: const InputDecoration(labelText: 'Line notes (optional)'), maxLines: 2),
           const SizedBox(height: 8),
           SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Made-to-order job'),
-              subtitle: const Text('Capture deposit, balance, due date, and delivery details'),
+              subtitle: const Text('Capture deposit, balance, due date, and delivery details',
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
               value: _isMto, onChanged: (v) => setState(() => _isMto = v)),
           if (_isMto) ...[
             TextField(controller: _deposit, decoration: const InputDecoration(labelText: 'Deposit amount (₱)'),
@@ -567,7 +645,7 @@ Future<void> _openCheckoutDialog(BuildContext context) async {
       final change = method == 'credit' ? 0.0 : (paid - total).clamp(0, double.infinity);
       return AlertDialog(
         title: const Text('Checkout'),
-        content: Form(key: formKey, child: SizedBox(width: 480, child: SingleChildScrollView(child: Column(
+        content: Form(key: formKey, child: SizedBox(width: _dialogWidth(ctx, 480), child: SingleChildScrollView(child: Column(
           mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             _summaryRow('Items', '${cart.itemCount}'),
             _summaryRow('Subtotal', formatPeso(cart.subtotal)),
@@ -591,6 +669,7 @@ Future<void> _openCheckoutDialog(BuildContext context) async {
             if (method == 'credit') ...[
               const SizedBox(height: 8),
               Text(cart.customer == null ? 'Select a customer in the cart for credit sales.' : 'Charging to: ${cart.customer!.name}',
+                  maxLines: 2, overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: cart.customer == null ? Theme.of(ctx).colorScheme.error : Theme.of(ctx).colorScheme.primary)),
             ],
             if (method != 'credit') ...[
@@ -635,7 +714,10 @@ Widget _summaryRow(String label, String value, {bool bold = false}) => Padding(
   padding: const EdgeInsets.symmetric(vertical: 2),
   child: Row(children: [
     Expanded(child: Text(label, style: TextStyle(fontWeight: bold ? FontWeight.w700 : null))),
-    Text(value, style: TextStyle(fontWeight: bold ? FontWeight.w700 : null)),
+    const SizedBox(width: 8),
+    Flexible(child: Text(value, textAlign: TextAlign.right, maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontWeight: bold ? FontWeight.w700 : null))),
   ]),
 );
 
@@ -650,17 +732,21 @@ Future<void> _showReceiptDialog(BuildContext context, SaleRecord sale) async {
       final footer = settings?.receiptFooter?.trim() ?? '';
       return AlertDialog(
         title: const Text('Sale completed'),
-        content: SizedBox(width: 420, child: SingleChildScrollView(child: Column(
+        content: SizedBox(width: _dialogWidth(ctx, 420), child: SingleChildScrollView(child: Column(
           mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             Center(child: Column(children: [
               Icon(Icons.check_circle, size: 48, color: Theme.of(ctx).colorScheme.primary),
               const SizedBox(height: 8),
-              Text(displayName, textAlign: TextAlign.center,
+              Text(displayName, textAlign: TextAlign.center, maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
               if ((settings?.contact ?? '').isNotEmpty)
-                Text(settings!.contact!, style: Theme.of(ctx).textTheme.bodySmall),
+                Text(settings!.contact!, textAlign: TextAlign.center, maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(ctx).textTheme.bodySmall),
               if ((settings?.address ?? '').isNotEmpty)
                 Text(settings!.address!, textAlign: TextAlign.center,
+                    maxLines: 3, overflow: TextOverflow.ellipsis,
                     style: Theme.of(ctx).textTheme.bodySmall),
               const SizedBox(height: 4), Text('Receipt ${sale.receiptNo}'),
               if (sale.createdAt != null) Text(formatDateTime(sale.createdAt!), style: Theme.of(ctx).textTheme.bodySmall),
@@ -675,10 +761,12 @@ Future<void> _showReceiptDialog(BuildContext context, SaleRecord sale) async {
               _summaryRow('Amount paid', formatPeso(sale.amountPaid)),
               _summaryRow('Change', formatPeso(sale.changeDue)),
             ] else const Padding(padding: EdgeInsets.only(top: 4), child: Text('Charged to store credit (utang).')),
-            if ((sale.notes ?? '').isNotEmpty) ...[const SizedBox(height: 8), Text('Notes: ${sale.notes}')],
+            if ((sale.notes ?? '').isNotEmpty) ...[const SizedBox(height: 8),
+              Text('Notes: ${sale.notes}', maxLines: 4, overflow: TextOverflow.ellipsis)],
             const SizedBox(height: 12),
             if (footer.isNotEmpty)
-              Text(footer, textAlign: TextAlign.center,
+              Text(footer, textAlign: TextAlign.center, maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
                     color: Theme.of(ctx).colorScheme.onSurfaceVariant,
                   )),
@@ -692,4 +780,10 @@ Future<void> _showReceiptDialog(BuildContext context, SaleRecord sale) async {
 
 String _paymentLabel(String m) {
   switch (m) { case 'gcash': return 'GCash'; case 'bank_transfer': return 'Bank transfer'; case 'credit': return 'Store credit'; default: return 'Cash'; }
+}
+
+double _dialogWidth(BuildContext context, double max) {
+  final available = MediaQuery.sizeOf(context).width - 32;
+  if (available < 280) return 280;
+  return available > max ? max : available;
 }

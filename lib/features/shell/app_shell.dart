@@ -8,19 +8,35 @@ import '../dashboard/dashboard_screen.dart';
 import '../inventory/screens/inventory_screen.dart';
 import '../pos/screens/pos_screen.dart';
 import '../products/screens/products_screen.dart';
+import '../profile/screens/profile_screen.dart';
 import '../reports/screens/reports_screen.dart';
 import '../sales/screens/sales_screen.dart';
 import '../settings/screens/settings_screen.dart';
 import '../team/screens/team_screen.dart';
 
+enum _Destination {
+  dashboard,
+  pos,
+  sales,
+  customers,
+  products,
+  inventory,
+  reports,
+  team,
+  settings,
+  profile,
+}
+
 class _NavItem {
   const _NavItem({
+    required this.key,
     required this.label,
     required this.icon,
     required this.selectedIcon,
     required this.builder,
   });
 
+  final _Destination key;
   final String label;
   final IconData icon;
   final IconData selectedIcon;
@@ -35,199 +51,363 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  int _selectedIndex = 0;
   String? _roleKey;
-  List<_NavItem> _items = const [];
+  _Destination? _selected;
+  Map<_Destination, _NavItem> _items = const {};
+  List<_Destination> _bottomKeys = const [_Destination.dashboard, _Destination.profile];
+  List<_Destination> _drawerKeys = const [];
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final profile = context.read<AuthProvider>().profile;
-    final roleKey = profile?.role.dbValue ?? 'none';
+    final role = context.read<AuthProvider>().profile?.role;
+    final roleKey = role?.dbValue ?? 'none';
     if (_roleKey == roleKey) return;
     _roleKey = roleKey;
-    _items = _itemsForRole(profile?.role);
-    _selectedIndex = 0;
+    _items = _itemsForRole(role);
+    _bottomKeys = _bottomKeysForRole(role);
+    _drawerKeys = _drawerKeysForRole(role);
+    if (_selected == null || !_items.containsKey(_selected)) {
+      _selected = _Destination.dashboard;
+    }
   }
 
-  List<_NavItem> _itemsForRole(UserRole? role) {
-    final items = <_NavItem>[
-      _NavItem(
+  Map<_Destination, _NavItem> _itemsForRole(UserRole? role) {
+    final items = <_Destination, _NavItem>{
+      _Destination.dashboard: const _NavItem(
+        key: _Destination.dashboard,
         label: 'Dashboard',
         icon: Icons.dashboard_outlined,
         selectedIcon: Icons.dashboard,
-        builder: () => const DashboardScreen(),
+        builder: DashboardScreen.new,
       ),
-    ];
+      _Destination.profile: const _NavItem(
+        key: _Destination.profile,
+        label: 'Profile',
+        icon: Icons.person_outline,
+        selectedIcon: Icons.person,
+        builder: ProfileScreen.new,
+      ),
+    };
 
     if (role == UserRole.admin || role == UserRole.cashier) {
-      items.add(
-        _NavItem(
-          label: 'POS',
+      items.addAll({
+        _Destination.pos: const _NavItem(
+          key: _Destination.pos,
+          label: 'Sales',
           icon: Icons.point_of_sale_outlined,
           selectedIcon: Icons.point_of_sale,
-          builder: () => const PosScreen(),
+          builder: PosScreen.new,
         ),
-      );
-      items.add(
-        _NavItem(
-          label: 'Sales',
+        _Destination.sales: const _NavItem(
+          key: _Destination.sales,
+          label: 'Sales History',
           icon: Icons.receipt_long_outlined,
           selectedIcon: Icons.receipt_long,
-          builder: () => const SalesScreen(),
+          builder: SalesScreen.new,
         ),
-      );
-      items.add(
-        _NavItem(
+        _Destination.customers: const _NavItem(
+          key: _Destination.customers,
           label: 'Customers',
           icon: Icons.people_outline,
           selectedIcon: Icons.people,
-          builder: () => const CustomersScreen(),
+          builder: CustomersScreen.new,
         ),
-      );
+      });
     }
 
     if (role == UserRole.admin || role == UserRole.inventoryManager) {
-      items.add(
-        _NavItem(
+      items.addAll({
+        _Destination.products: const _NavItem(
+          key: _Destination.products,
           label: 'Products',
           icon: Icons.chair_outlined,
           selectedIcon: Icons.chair,
-          builder: () => const ProductsScreen(),
+          builder: ProductsScreen.new,
         ),
-      );
-      items.add(
-        _NavItem(
+        _Destination.inventory: const _NavItem(
+          key: _Destination.inventory,
           label: 'Inventory',
           icon: Icons.inventory_2_outlined,
           selectedIcon: Icons.inventory_2,
-          builder: () => const InventoryScreen(),
+          builder: InventoryScreen.new,
         ),
-      );
+      });
     }
 
     if (role == UserRole.admin) {
-      items.add(
-        _NavItem(
+      items.addAll({
+        _Destination.reports: const _NavItem(
+          key: _Destination.reports,
           label: 'Reports',
           icon: Icons.bar_chart_outlined,
           selectedIcon: Icons.bar_chart,
-          builder: () => const ReportsScreen(),
+          builder: ReportsScreen.new,
         ),
-      );
-      items.add(
-        _NavItem(
+        _Destination.team: const _NavItem(
+          key: _Destination.team,
           label: 'Team',
           icon: Icons.admin_panel_settings_outlined,
           selectedIcon: Icons.admin_panel_settings,
-          builder: () => const TeamScreen(),
+          builder: TeamScreen.new,
         ),
-      );
-      items.add(
-        _NavItem(
+        _Destination.settings: const _NavItem(
+          key: _Destination.settings,
           label: 'Settings',
           icon: Icons.settings_outlined,
           selectedIcon: Icons.settings,
-          builder: () => const SettingsScreen(),
+          builder: SettingsScreen.new,
         ),
-      );
+      });
     }
 
     return items;
   }
 
+  List<_Destination> _bottomKeysForRole(UserRole? role) {
+    if (role == UserRole.admin) {
+      return const [
+        _Destination.dashboard,
+        _Destination.reports,
+        _Destination.team,
+        _Destination.profile,
+      ];
+    }
+    return const [_Destination.dashboard, _Destination.profile];
+  }
+
+  List<_Destination> _drawerKeysForRole(UserRole? role) {
+    switch (role) {
+      case UserRole.admin:
+        return const [
+          _Destination.pos,
+          _Destination.sales,
+          _Destination.customers,
+          _Destination.products,
+          _Destination.inventory,
+          _Destination.settings,
+        ];
+      case UserRole.cashier:
+        return const [
+          _Destination.pos,
+          _Destination.sales,
+          _Destination.customers,
+        ];
+      case UserRole.inventoryManager:
+        return const [_Destination.products, _Destination.inventory];
+      case null:
+        return const [];
+    }
+  }
+
+  void _select(_Destination key) {
+    if (!_items.containsKey(key)) return;
+    setState(() => _selected = key);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final profile = auth.profile;
-    final items = _items;
-    final safeIndex = _selectedIndex.clamp(0, items.isEmpty ? 0 : items.length - 1);
-    final theme = Theme.of(context);
+    final selected = _selected ?? _Destination.dashboard;
+    final current = _items[selected] ?? _items[_Destination.dashboard];
+    final bottomItems = _bottomKeys
+        .where((key) => _items.containsKey(key))
+        .map((key) => _items[key]!)
+        .toList();
 
     return Scaffold(
-      body: Row(
+      body: Column(
         children: [
-          NavigationRail(
-            selectedIndex: items.isEmpty ? 0 : safeIndex,
-            onDestinationSelected: (index) => setState(() => _selectedIndex = index),
-            labelType: NavigationRailLabelType.all,
-            leading: Padding(
-              padding: const EdgeInsets.only(top: 8, bottom: 12),
-              child: Column(
-                children: [
-                  Icon(Icons.chair_alt_rounded,
-                      color: theme.colorScheme.primary, size: 28),
-                  const SizedBox(height: 4),
-                  Text(
-                    "Rhonalyn's",
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            trailing: Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (profile != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Column(
-                        children: [
-                          CircleAvatar(
-                            radius: 16,
-                            child: Text(
-                              profile.displayName.isNotEmpty
-                                  ? profile.displayName[0].toUpperCase()
-                                  : '?',
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            profile.displayName,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelSmall,
-                          ),
-                          Text(
-                            profile.role.label,
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  IconButton(
-                    tooltip: 'Sign out',
-                    icon: const Icon(Icons.logout),
-                    onPressed: auth.isWorking ? null : () => auth.signOut(),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-              ),
-            ),
-            destinations: [
-              for (final item in items)
-                NavigationRailDestination(
-                  icon: Icon(item.icon),
-                  selectedIcon: Icon(item.selectedIcon),
-                  label: Text(item.label),
-                ),
-            ],
+          _TopBar(
+            currentLabel: current?.label ?? 'Dashboard',
+            drawerItems: _drawerKeys
+                .where((key) => _items.containsKey(key))
+                .map((key) => _items[key]!)
+                .toList(),
+            onSelected: _select,
           ),
-          const VerticalDivider(width: 1, thickness: 1),
           Expanded(
-            child: items.isEmpty
-                ? const Center(child: Text('No modules available'))
-                : items[safeIndex].builder(),
+            child: Stack(
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(
+                    bottom: 104 + MediaQuery.viewPaddingOf(context).bottom,
+                  ),
+                  child: current?.builder() ??
+                      const Center(child: Text('No modules available')),
+                ),
+                if (bottomItems.isNotEmpty)
+                  _FloatingBottomNav(
+                    items: bottomItems,
+                    selected: selected,
+                    onSelected: _select,
+                  ),
+              ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TopBar extends StatelessWidget {
+  const _TopBar({
+    required this.currentLabel,
+    required this.drawerItems,
+    required this.onSelected,
+  });
+
+  final String currentLabel;
+  final List<_NavItem> drawerItems;
+  final ValueChanged<_Destination> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      child: SizedBox(
+        height: 64,
+        child: Row(
+          children: [
+            PopupMenuButton<_Destination>(
+              tooltip: 'Modules',
+              offset: const Offset(0, 48),
+              onSelected: onSelected,
+              itemBuilder: (_) => [
+                PopupMenuItem<_Destination>(
+                  enabled: false,
+                  child: Text(
+                    'Open module',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+                const PopupMenuDivider(),
+                for (final item in drawerItems)
+                  PopupMenuItem<_Destination>(
+                    value: item.key,
+                    child: Row(
+                      children: [
+                        Icon(item.icon, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(child: Text(item.label)),
+                      ],
+                    ),
+                  ),
+              ],
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      Icons.chair_alt_rounded,
+                      color: theme.colorScheme.onPrimaryContainer,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.expand_more,
+                    size: 18,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "Rhonalyn's",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  Text(
+                    currentLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FloatingBottomNav extends StatelessWidget {
+  const _FloatingBottomNav({
+    required this.items,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final List<_NavItem> items;
+  final _Destination selected;
+  final ValueChanged<_Destination> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final index = items.indexWhere((item) => item.key == selected);
+    final safeIndex = index < 0 ? 0 : index;
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: SafeArea(
+        top: false,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 720),
+          margin: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: [
+              BoxShadow(
+                color: theme.shadowColor.withValues(alpha: 0.18),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: NavigationBar(
+              selectedIndex: safeIndex,
+              onDestinationSelected: (i) => onSelected(items[i].key),
+              backgroundColor: Colors.transparent,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              destinations: [
+                for (final item in items)
+                  NavigationDestination(
+                    icon: Icon(item.icon),
+                    selectedIcon: Icon(item.selectedIcon),
+                    label: item.label,
+                  ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

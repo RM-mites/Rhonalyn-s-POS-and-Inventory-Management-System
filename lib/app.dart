@@ -24,12 +24,18 @@ class RhonalynsApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = MaterialApp(
-      title: "Rhonalyn's POS & Inventory",
+      title: "Rhonalyn's Sales & Inventory",
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: initError != null
-          ? StartupScreen(error: initError)
-          : const AuthGate(),
+      home: SafeArea(
+        top: true,
+        bottom: false,
+        left: false,
+        right: false,
+        child: initError != null
+            ? StartupScreen(error: initError)
+            : const AuthGate(),
+      ),
     );
     if (initError != null) return app;
     // Providers wrap MaterialApp so dialogs (which are pushed as sibling

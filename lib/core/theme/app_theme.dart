@@ -22,14 +22,19 @@ class AppTheme {
         elevation: 0,
         centerTitle: false,
       ),
-      navigationRailTheme: NavigationRailThemeData(
+      navigationBarTheme: NavigationBarThemeData(
         backgroundColor: scheme.surface,
         indicatorColor: scheme.primaryContainer,
-        selectedIconTheme: IconThemeData(color: scheme.onPrimaryContainer),
-        selectedLabelTextStyle: TextStyle(
-          color: scheme.onSurface,
-          fontWeight: FontWeight.w600,
-        ),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 12,
+            color: selected ? scheme.onSurface : scheme.onSurfaceVariant,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          );
+        }),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
